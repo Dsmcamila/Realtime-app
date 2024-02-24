@@ -21,6 +21,13 @@ $ npm install
 ```
 $ npm run dev
 ```
+#### DB:
+
+```
+$ npm install pg
+```
+
+
 Ir a localhost:3000
 
 
