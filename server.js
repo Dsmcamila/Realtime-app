@@ -3,6 +3,14 @@ const http = require('http');
 const express = require('express');
 const socketIO = require('socket.io');
 const formatMessage = require('./utils/messages');
+const router = new express.Router();
+const { Pool } = require('pg');
+const app = express();
+const pool = require('./db/index'); 
+const bcrypt = require('bcrypt');
+const session = require('express-session');
+const flash = require('express-flash');
+
 const { 
     userJoin, 
     getCurrentUser, 
@@ -10,15 +18,41 @@ const {
     etRoomUsers, 
     getRoomUsers
 } = require('./utils/users');
+const { error } = require('console');
 
 
 
-const app = express();
 const server = http.createServer(app);
 const io = socketIO(server);
 
+//MIDDLEWARE
+app.set('view engine', 'ejs');
+app.set('views', path.join(__dirname, 'public'));
+app.use(express.urlencoded({extended: false}));
 
-// TODO : Create a connexion to the DB postgreSQL and validate user credentials
+//app configuration
+app.use(session({
+    secret: "secret",
+    resave: false,
+    saveUninitialized: false
+}));
+
+app.use(flash());
+
+//renderizaciones
+app.get('/', (req, res) => {
+    const messages = {
+      success_msg: req.flash('success_msg')
+    };
+    res.render('index', { messages: messages });
+});
+
+app.get('/signup', (req, res) => {
+    res.render('signup', { errors: [] });
+});
+
+
+
 
 //Set static folder
 app.use(express.static(path.join(__dirname, 'public')));
@@ -89,3 +123,78 @@ io.on('connection', socket => {
 const PORT = 3000 || process.env.PORT;
 
 server.listen(PORT, () => console.log(`Server running on port ${PORT}`));
+
+// DATA BASE CONFIGURATIONS 
+// CONFIGURACION SIGNUP
+app.post('/signup', async (req, res) => {
+    const { username, email, password } = req.body;
+    
+    let errors = [];
+    
+    
+    if (password.length < 6) {
+        errors.push({ message: "Contraseña debe tener minimo 6 characteres" });
+    }
+    
+    if (errors.length > 0) {
+        res.render("signup", { errors });
+    } 
+    else {
+        //encryptar constraseña
+        const hashedPassword = await bcrypt.hash(password,  10);
+        //Validacion correo ya registrado
+        pool.query(
+            `SELECT * FROM usuario
+              WHERE email = $1`,
+            [email],
+            (err, results) => {
+                if (err) {
+                    console.log(err);
+                }
+                console.log(results.rows);
+                if (results.rows.length >  0) {
+                    errors.push({ message: "Email ya se encuentra registrado!" });
+                    res.render("signup", { errors });
+                } else {
+                    // Validacion nombre de usuario ya registrado
+                    pool.query(
+                        `SELECT * FROM usuario
+                          WHERE nombre = $1`,
+                        [username],
+                        (err, results) => {
+                            if (err) {
+                                console.log(err);
+                            }
+                            console.log(results.rows);
+                            if (results.rows.length >  0) {
+                                errors.push({ message: "Nombre de usuario ya se encuentra registrado!" });
+                                res.render("signup", { errors });
+                            } else {
+                                // Si el nombre de usuario no está registrado, procede a insertar el nuevo usuario
+                                pool.query(
+                                    `INSERT INTO usuario (nombre, email, contrasena)
+                                        VALUES ($1, $2, $3)
+                                        RETURNING id, contrasena`,
+                                    [username, email, hashedPassword],
+                                    (err, results) => {
+                                        if (err) {
+                                            throw err;
+                                        }
+                                        console.log(results.rows);
+                                        req.flash("success_msg", "Ya estás registrado!. Ingresa tus credenciales");
+                                        res.redirect("/");
+                                    }
+                                ); // Cierre de la segunda consulta pool.query
+                            }
+                        }
+                    ); // Cierre de la consulta para verificar nombre de usuario
+                }
+            }
+        ); // Cierre de la primera consulta pool.query
+    }
+    
+});
+
+//CONFIGURACION LOGIN
+
+module.exports = router;

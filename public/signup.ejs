@@ -10,7 +10,14 @@
     <div class="wrapper">
         <section class="form login">
           <header>☕︎ Realtime Panthers CHAT ☕︎</header>
-          <form action="chat/interface.html" method="GET" enctype="multipart/form-data" autocomplete="off">
+
+          <ul>
+            <% if (typeof errors != 'undefined') { %> <% errors.forEach(error => { %>
+            <li><%= error.message %></li>
+            <% }) %> <% } %>
+          </ul>
+
+          <form action="/signup" method="POST" autocomplete="off">
             <div class="error-text"></div>
             <div class="field input">
               <label>Usuario</label>

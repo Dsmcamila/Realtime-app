@@ -25,9 +25,10 @@ $ npm run dev
 
 ```
 $ npm install pg
+$ npm install bcrypt
+$ npm install express-session
+$ npm install express-flash
 ```
-
-
 Ir a localhost:3000
 
 

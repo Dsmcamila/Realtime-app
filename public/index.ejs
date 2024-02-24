@@ -10,6 +10,24 @@
   <div class="wrapper">
     <section class="form login">
       <header>☕︎ Realtime Panthers CHAT ☕︎</header>
+      <ul>
+        <% if (typeof errors != 'undefined') { %> <% errors.forEach(error => { %>
+        <li><%= error.message %></li>
+        <% }) %> <% } %>
+      </ul>
+  
+      <ul>
+        <% if(messages.success_msg) { %>
+        <li><%= messages.success_msg %></li>
+        <% } %>
+      </ul>
+  
+      <ul>
+        <% if (messages.error) { %>
+        <li><%= messages.error %></li>
+        <% } %>
+      </ul>
+
       <form action="chat/interface.html" method="GET" enctype="multipart/form-data" autocomplete="off">
         <div class="error-text"></div>
         <div class="field input">
@@ -25,7 +43,7 @@
           <input type="submit" name="submit" value="Continue to Chat"> 
         </div>
       </form>
-      <div class="link">No te has registrado<a href="signup.html"> Inscríbete!</a></div>
+      <div class="link">No te has registrado<a href="/signup"> Inscríbete!</a></div>
     </section> 
   </div>
 </body>
