@@ -9,8 +9,20 @@ const pool = new Pool({
   port:  5432,
 });
 
-module.exports = pool;
 
+// CONEXION USUARIOS        
+
+/*
+//Pedir datos
+const obtenerUsuarios = async() => {
+  const res = await pool.query('SELECT * FROM public.usuario');
+  console.log(res.rows);
+  pool.end(); //no para apps webs
+}
+
+//obtenerUsuarios();
+
+// TEST        
 //Pedir datos
 const obtenerCanales = async() => {
   const res = await pool.query('SELECT * FROM public.canales');
@@ -39,3 +51,7 @@ const borrarCanal = async () => {
 //obtenerCanales();
 //insertarCanal();
 //borrarCanal();
+
+*/
+
+module.exports = pool;
