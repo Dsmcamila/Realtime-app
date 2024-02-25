@@ -54,4 +54,4 @@ const borrarCanal = async () => {
 
 */
 
-module.exports = pool;
+module.exports = { pool };
