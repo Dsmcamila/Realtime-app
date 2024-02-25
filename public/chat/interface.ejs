@@ -19,31 +19,21 @@
 				<h1> Realtime Panthers CHAT</h1>
 			</header>
 			<main class="join-main">
-				<form action="chat.html">
+				<form action="/join-chat" method="POST" autocomplete="off">
+					<input type="hidden" name="username" value="<%= user.nombre %>">
 					<div class="form-control">
-						<label for="username">Usuario</label>
-						<input
-							type="text"
-							name="username"
-							id="username"
-							placeholder="Enter username..."
-							required
-						/>
-					</div>
-					<div class="form-control">
-						<label for="room">Salas</label>
-						<select name="room" id="room">
-							<option value="JavaScript">JavaScript</option>
-							<option value="Python">Python</option>
-							<option value="PHP">PHP</option>
-							<option value="C#">C#</option>
-							<option value="Ruby">Ruby</option>
-							<option value="Java">Java</option>
-						</select>
+					  <label for="room">Salas</label>
+					  <select name="courseId" id="room">
+						<option value="1">JavaScript</option>
+						<option value="2">Python</option>
+						<option value="3">PHP</option>
+						<option value="4">C#</option>
+						<option value="5">Ruby</option>
+						<option value="6">Java</option>
+					  </select>
 					</div>
 					<button type="submit" class="btn">Entrar a la Sala</button>
-				</form>
-				
+				</form>				
 				<div class='leave-button'>
 					<a href="/users/logout" class="leave-chat">Regresar a la pagina de inicio   ←</a>
 				</div>

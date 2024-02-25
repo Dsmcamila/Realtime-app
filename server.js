@@ -13,6 +13,7 @@ const flash = require('express-flash');
 const passport = require('passport');
 const PORT = 3000 || process.env.PORT;
 const bodyParser = require('body-parser');
+const moment = require('moment');
 
 const initializePassport = require('./passportConfig');
 
@@ -62,8 +63,14 @@ app.get('/signup', (req, res) => {
 });
 
 app.get('/chat/interface', checkNotAuthenticated, (req, res) => {
-    // Renderizar la vista interface.ejs
-    res.render('chat/interface');
+    // Verifica si el usuario está autenticado
+    if (req.user) {
+        // Renderiza la plantilla con el objeto user
+        res.render('chat/interface', { user: req.user });
+    } else {
+        // Redirige al usuario a la página de inicio de sesión si no está autenticado
+        res.redirect('/login');
+    }
 });
 
 app.get("/users/logout", (req, res) => {
@@ -76,6 +83,9 @@ app.get("/users/logout", (req, res) => {
     });
 });
 
+app.get('/chat/chat', (req, res) => {
+        res.render('chat/chat', { user: req.user });
+});
 
 
 
@@ -253,7 +263,55 @@ function checkNotAuthenticated(req, res, next) {
     res.redirect("/");
 }
 
-//CONFIGURACION INTERFACE
+//CONFIGURACION CHAT
+app.post('/join-chat', async (req, res) => {
+    const { username, courseId } = req.body; // Asumiendo que estos datos vienen en el cuerpo de la solicitud
+
+    const currentDateTime = moment().format('YYYY-MM-DD HH:mm:ss');
+
+    console.log("La fecha actual es: ", currentDateTime);
+    console.log({
+        username,
+        courseId
+    });
+    
+    // Consulta para obtener el id del usuario basado en el username
+    const userQuery = `
+      SELECT id FROM public.usuario WHERE nombre = $1
+    `;
+    const userValues = [username]; // Asegúrate de que 'username' contiene el valor correcto
+    
+    try {
+      const userResult = await pool.query(userQuery, userValues);
+      if (userResult.rows.length >  0) {
+        const userId = userResult.rows[0].id;
+        console.log('ID del usuario:', userId);
+    
+        // Consulta para insertar el registro en la tabla 'chat'
+        const chatQuery = `
+          INSERT INTO public.chat (fecha_hora, id_usuario, id_canal)
+          VALUES ($1, $2, $3)
+          RETURNING id;
+        `;
+        const chatValues = [currentDateTime, userId, courseId];
+    
+        const chatResult = await pool.query(chatQuery, chatValues);
+        console.log('Chat insertado con éxito:', chatResult.rows[0].id);
+      } else {
+        console.log('Usuario no encontrado');
+        // Manejar el caso en que el usuario no se encuentra
+      }
+    } catch (err) {
+      console.error('Error al consultar el usuario o insertar en la tabla de chat:', err);
+    }
+
+
+
+
+    //res.redirect('/chat/chat');
+
+    
+});
 
 //LISTEN PORT
 server.listen(PORT, () => console.log(`Server running on port ${PORT}`));

@@ -31,6 +31,7 @@ $ npm install express-flash
 $ npm install passport-local
 $ npm install passport
 $ npm install body-parser
+$ npm install moment
 ```
 Ir a localhost:3000
 
