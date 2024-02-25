@@ -268,8 +268,11 @@ app.post('/join-chat', async (req, res) => {
     const { username, courseId } = req.body; // Asumiendo que estos datos vienen en el cuerpo de la solicitud
 
     const currentDateTime = moment().format('YYYY-MM-DD HH:mm:ss');
+    const currentDate = moment().format('YYYY-MM-DD');
 
-    console.log("La fecha actual es: ", currentDateTime);
+    console.log("La fecha y hora actual es: ", currentDateTime, " FECHA ", currentDate);
+    console.log("Solo la fecha es: ", currentDate);
+
     console.log({
         username,
         courseId
@@ -279,37 +282,46 @@ app.post('/join-chat', async (req, res) => {
     const userQuery = `
       SELECT id FROM public.usuario WHERE nombre = $1
     `;
-    const userValues = [username]; // Asegúrate de que 'username' contiene el valor correcto
-    
+      // Consulta para obtener el nombre del canal basado en su id
+    const canalQuery = `
+        SELECT nombre FROM public.canales WHERE id = $1
+    `;
+
+    const userValues = [username]; 
+    const canalValues = [courseId];
     try {
-      const userResult = await pool.query(userQuery, userValues);
-      if (userResult.rows.length >  0) {
-        const userId = userResult.rows[0].id;
-        console.log('ID del usuario:', userId);
-    
-        // Consulta para insertar el registro en la tabla 'chat'
-        const chatQuery = `
-          INSERT INTO public.chat (fecha_hora, id_usuario, id_canal)
-          VALUES ($1, $2, $3)
-          RETURNING id;
-        `;
-        const chatValues = [currentDateTime, userId, courseId];
-    
-        const chatResult = await pool.query(chatQuery, chatValues);
-        console.log('Chat insertado con éxito:', chatResult.rows[0].id);
+      const canalResult = await pool.query(canalQuery, canalValues);
+      if (canalResult.rows.length >  0) {
+        const canalNombre = canalResult.rows[0].nombre;
+        console.log('Nombre del canal:', canalNombre);
+        //Comprobacion usuario 
+        const userResult = await pool.query(userQuery, userValues);
+        if (userResult.rows.length >  0) {
+          const userId = userResult.rows[0].id;
+          console.log('ID del usuario:', userId);
+      
+          // Consulta para insertar el registro en la tabla 'chat'
+          const chatQuery = `
+            INSERT INTO public.chat (fecha_hora, id_usuario, id_canal, fecha)
+            VALUES ($1, $2, $3, $4)
+            RETURNING id;
+          `;
+          const chatValues = [currentDateTime, userId, courseId, currentDate];
+      
+          const chatResult = await pool.query(chatQuery, chatValues);
+          console.log('Chat insertado con éxito:', chatResult.rows[0].id);
+          res.redirect(`/chat/chat?username=${username}&room=${canalNombre}`);
+        } else {
+          console.log('Usuario no encontrado');
+          // Manejar el caso en que el usuario no se encuentra
+        }
       } else {
-        console.log('Usuario no encontrado');
-        // Manejar el caso en que el usuario no se encuentra
+        console.log('Canal no encontrado');
+        // Manejar el caso en que el canal no se encuentra
       }
     } catch (err) {
-      console.error('Error al consultar el usuario o insertar en la tabla de chat:', err);
-    }
-
-
-
-
-    //res.redirect('/chat/chat');
-
+      console.error('Error al consultar el canal:', err);
+    }    
     
 });
 
