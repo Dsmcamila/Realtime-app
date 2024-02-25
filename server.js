@@ -37,6 +37,7 @@ app.set('view engine', 'ejs');
 app.set('views', path.join(__dirname, 'public'));
 app.use(bodyParser.urlencoded({ extended: false }));
 app.use(express.urlencoded({extended: false}));
+  
 
 //app configuration
 app.use(session({
@@ -50,7 +51,7 @@ app.use(flash());
 
 
 //renderizaciones
-app.get('/', (req, res) => {
+app.get('/',  (req, res) => {
     const messages = {
       success_msg: req.flash('success_msg')
     };
@@ -62,14 +63,14 @@ app.get('/signup', (req, res) => {
     res.render('signup', { errors: [] });
 });
 
-app.get('/chat/interface', checkNotAuthenticated, (req, res) => {
+app.get('/chat/interface', (req, res) => {
     // Verifica si el usuario está autenticado
     if (req.user) {
         // Renderiza la plantilla con el objeto user
         res.render('chat/interface', { user: req.user });
     } else {
         // Redirige al usuario a la página de inicio de sesión si no está autenticado
-        res.redirect('/login');
+        res.redirect('/');
     }
 });
 
@@ -79,7 +80,7 @@ app.get("/users/logout", (req, res) => {
         console.error(err);
         return res.status(500).send('Error al cerrar la sesión');
       }
-      res.redirect("/");
+      res.redirect("/"); // Redirige al usuario a la página de inicio
     });
 });
 
@@ -130,11 +131,36 @@ io.on('connection', socket => {
         });
     })
 
-    //Listen for chatMessage
-    socket.on('chatMessage', msg => {
+    //Listen for chatMessage y guardar en db
+    socket.on('chatMessage', async msg => {
         const user = getCurrentUser(socket.id);
+    
+    try{    
+        const id_usuario = await obtenerIdUsuario(user.username);
+        const id_canal = await obtenerIdCanal(user.room);
+        const id_chat = await obtenerIdChat(id_usuario, id_canal);
+        
+        console.log("El nombre del usuario es: ", id_usuario);
+        console.log("EL nombre del canal es: ", id_canal);
+        console.log("EL nombre del canal es: ", id_chat);
 
         io.to(user.room).emit('message', formatMessage(user.username, msg)); //emit to everyone the message
+        // Consulta para insertar el registro en la tabla 'chat'
+        const chatDetailQuery = `
+           INSERT INTO public.chat_detalle (id_chat, id_usuario, detalle)
+           VALUES ($1, $2, $3);
+        `;
+
+        
+        const chatDetail = [id_chat, id_usuario, msg];
+     
+        const chatResult = await pool.query(chatDetailQuery, chatDetail);
+    
+        
+    } catch(error){
+        console.error("Error al obtener el id del canal:", error);
+    }    
+
     });
 
     //Runs when client disconnects
@@ -249,23 +275,10 @@ app.post("/", passport.authenticate("local", {
     }
 }));
   
-function checkAuthenticated(req, res, next) {
-    if (req.isAuthenticated()) {
-      return res.redirect("/chat/interface");
-    }
-    next();
-}
-  
-function checkNotAuthenticated(req, res, next) {
-    if (req.isAuthenticated()) {
-      return next();
-    }
-    res.redirect("/");
-}
 
 //CONFIGURACION CHAT
 app.post('/join-chat', async (req, res) => {
-    const { username, courseId } = req.body; // Asumiendo que estos datos vienen en el cuerpo de la solicitud
+    const { username, courseId } = req.body; 
 
     const currentDateTime = moment().format('YYYY-MM-DD HH:mm:ss');
     const currentDate = moment().format('YYYY-MM-DD');
@@ -313,17 +326,85 @@ app.post('/join-chat', async (req, res) => {
           res.redirect(`/chat/chat?username=${username}&room=${canalNombre}`);
         } else {
           console.log('Usuario no encontrado');
-          // Manejar el caso en que el usuario no se encuentra
         }
       } else {
         console.log('Canal no encontrado');
-        // Manejar el caso en que el canal no se encuentra
       }
     } catch (err) {
       console.error('Error al consultar el canal:', err);
     }    
     
 });
+
+//FUNCIONES PARA BUSCAR LAS ID DE LOS CHATS
+//para  canal
+function obtenerIdCanal(roomName) {
+    // Consulta para obtener el id_chat basado en el nombre de la sala
+    const chatQuery = `
+      SELECT id FROM public.canales WHERE nombre = $1
+    `;
+    const chatValues = [roomName];
+  
+    return pool.query(chatQuery, chatValues)
+      .then(result => {
+        if (result.rows.length >  0) {
+          return result.rows[0].id;
+        } else {
+          throw new Error('No se encontró el chat para el nombre de la sala especificado');
+        }
+      })
+      .catch(err => {
+        console.error('Error al obtener el id_chat:', err);
+        return null;
+      });
+}
+//usuario 
+function obtenerIdUsuario(username) {
+  // Consulta para obtener el id_usuario basado en el nombre de usuario
+  const userQuery = `
+    SELECT id FROM public.usuario WHERE nombre = $1
+  `;
+  const userValues = [username];
+
+  return pool.query(userQuery, userValues)
+    .then(result => {
+      if (result.rows.length >  0) {
+        return result.rows[0].id;
+      } else {
+        throw new Error('No se encontró el usuario con el nombre especificado');
+      }
+    })
+    .catch(err => {
+      console.error('Error al obtener el id_usuario:', err);
+      return null;
+    });
+}
+//chat 
+function obtenerIdChat(userId, canalId) {
+    // Consulta para obtener el id_chat basado en el id_usuario y el id_canal
+    const chatQuery = `
+      SELECT id
+      FROM public.chat
+      WHERE id_usuario = $1 AND id_canal = $2
+      ORDER BY fecha_hora DESC
+      LIMIT  1
+    `;
+    const chatValues = [userId, canalId];
+  
+    return pool.query(chatQuery, chatValues)
+      .then(result => {
+        if (result.rows.length >  0) {
+          return result.rows[0].id; // Devuelve el ID del chat más reciente
+        } else {
+          throw new Error('No se encontró el chat para el usuario y el canal especificados');
+        }
+      })
+      .catch(err => {
+        console.error('Error al obtener el id_chat:', err);
+        return null;
+      });
+}
+
 
 //LISTEN PORT
 server.listen(PORT, () => console.log(`Server running on port ${PORT}`));
