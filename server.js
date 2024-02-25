@@ -6,10 +6,15 @@ const formatMessage = require('./utils/messages');
 const router = new express.Router();
 const { Pool } = require('pg');
 const app = express();
-const pool = require('./db/index'); 
+const { pool } = require('./db/index'); 
 const bcrypt = require('bcrypt');
 const session = require('express-session');
 const flash = require('express-flash');
+const passport = require('passport');
+const PORT = 3000 || process.env.PORT;
+const bodyParser = require('body-parser');
+
+const initializePassport = require('./passportConfig');
 
 const { 
     userJoin, 
@@ -21,13 +26,15 @@ const {
 const { error } = require('console');
 
 
-
 const server = http.createServer(app);
 const io = socketIO(server);
+
+initializePassport(passport);
 
 //MIDDLEWARE
 app.set('view engine', 'ejs');
 app.set('views', path.join(__dirname, 'public'));
+app.use(bodyParser.urlencoded({ extended: false }));
 app.use(express.urlencoded({extended: false}));
 
 //app configuration
@@ -36,8 +43,10 @@ app.use(session({
     resave: false,
     saveUninitialized: false
 }));
-
+app.use(passport.initialize());
+app.use(passport.session());
 app.use(flash());
+
 
 //renderizaciones
 app.get('/', (req, res) => {
@@ -47,9 +56,26 @@ app.get('/', (req, res) => {
     res.render('index', { messages: messages });
 });
 
+
 app.get('/signup', (req, res) => {
     res.render('signup', { errors: [] });
 });
+
+app.get('/chat/interface', checkNotAuthenticated, (req, res) => {
+    // Renderizar la vista interface.ejs
+    res.render('chat/interface');
+});
+
+app.get("/users/logout", (req, res) => {
+    req.logout(function(err) {
+      if (err) {
+        console.error(err);
+        return res.status(500).send('Error al cerrar la sesión');
+      }
+      res.redirect("/");
+    });
+});
+
 
 
 
@@ -120,9 +146,6 @@ io.on('connection', socket => {
 
 });
 
-const PORT = 3000 || process.env.PORT;
-
-server.listen(PORT, () => console.log(`Server running on port ${PORT}`));
 
 // DATA BASE CONFIGURATIONS 
 // CONFIGURACION SIGNUP
@@ -195,6 +218,45 @@ app.post('/signup', async (req, res) => {
     
 });
 
+
+//TODO: Mensajes de error identifica pero no imprime
+
 //CONFIGURACION LOGIN
+app.post("/", passport.authenticate("local", {
+    successRedirect: "/chat/interface",
+    failureRedirect: "/",
+    failureFlash: true,
+    failure: function(err, req, res, next) {
+      // Pasar los errores a la vista
+      let errors = [];
+      if (err) {
+        errors.push({ message: err.message });
+      }
+      console.log("los errores son:", errors);
+      // Renderizar la página de inicio con los mensajes de error
+      req.flash('error', errors);
+      res.redirect("/");
+    }
+}));
+  
+function checkAuthenticated(req, res, next) {
+    if (req.isAuthenticated()) {
+      return res.redirect("/chat/interface");
+    }
+    next();
+}
+  
+function checkNotAuthenticated(req, res, next) {
+    if (req.isAuthenticated()) {
+      return next();
+    }
+    res.redirect("/");
+}
+
+//CONFIGURACION INTERFACE
+
+//LISTEN PORT
+server.listen(PORT, () => console.log(`Server running on port ${PORT}`));
+
 
 module.exports = router;

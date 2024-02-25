@@ -10,10 +10,13 @@
   <div class="wrapper">
     <section class="form login">
       <header>☕︎ Realtime Panthers CHAT ☕︎</header>
+
       <ul>
-        <% if (typeof errors != 'undefined') { %> <% errors.forEach(error => { %>
-        <li><%= error.message %></li>
-        <% }) %> <% } %>
+        <% if (typeof errors != 'undefined' && errors.length >  0) { %>
+          <% errors.forEach(error => { %>
+            <li style="color: red;"><%= error.message %></li>
+          <% }) %>
+        <% } %>
       </ul>
   
       <ul>
@@ -28,7 +31,7 @@
         <% } %>
       </ul>
 
-      <form action="chat/interface.html" method="GET" enctype="multipart/form-data" autocomplete="off">
+      <form action="/" method="POST" autocomplete="off">
         <div class="error-text"></div>
         <div class="field input">
           <label>Email</label>
